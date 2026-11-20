@@ -1,0 +1,44 @@
+{
+  "name": "context-slim",
+  "version": "1.0.0",
+  "description": "Zero-dependency universal token-saving compressor (CLI + ultra-lean MCP server + portable SKILL.md) for Codex, Gemini CLI, Claude Code/Desktop, Cursor, and OpenBot — with hybrid rtk/repomix support.",
+  "main": "index.cjs",
+  "bin": {
+    "context-slim": "./bin/context-slim.cjs",
+    "context-slim-mcp": "./bin/mcp-server.cjs"
+  },
+  "scripts": {
+    "check": "node --check index.cjs && node --check bin/context-slim.cjs && node --check bin/mcp-server.cjs && node --check lib/tokenizer.cjs && node --check lib/adapters.cjs && node --check lib/compressors.cjs && node --check lib/installers.cjs && node --check tests/context-slim.test.cjs",
+    "test": "node --test tests/context-slim.test.cjs"
+  },
+  "keywords": [
+    "tokens",
+    "context-compression",
+    "token-saver",
+    "mcp",
+    "model-context-protocol",
+    "codex",
+    "gemini-cli",
+    "claude-code",
+    "agent-skills",
+    "nodejs"
+  ],
+  "author": "Emerson Almeida <https://github.com/deusbr>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deusbr/context-slim.git"
+  },
+  "homepage": "https://github.com/deusbr/context-slim#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "index.cjs",
+    "bin/",
+    "lib/",
+    "skill/",
+    "README.md",
+    "LICENSE"
+  ]
+}
