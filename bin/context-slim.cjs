@@ -89,7 +89,11 @@ async function main() {
   const { positionals, flags } = parseFlags(args.slice(1));
   const level = flags.level || 'balanced';
   const mode = flags.mode || 'auto';
-  const maxTokens = flags['max-tokens'] ? Number(flags['max-tokens']) : 0;
+  const rawBudget = flags['max-tokens'];
+  const maxTokens = rawBudget === undefined ? 0 : Number(rawBudget);
+  if (rawBudget !== undefined && (!/^\d+$/.test(rawBudget) || !Number.isSafeInteger(maxTokens))) {
+    throw new Error('--max-tokens requires a non-negative integer (0 disables the limit).');
+  }
 
   if (cmd === 'engines') {
     const engines = detectExternalEngines();

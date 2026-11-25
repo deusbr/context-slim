@@ -52,6 +52,13 @@ cat app.log | node bin/context-slim.cjs text --format log --copy
 node bin/context-slim.cjs engines
 ```
 
+`--max-tokens N` caps the compressed content using Context Slim's built-in token
+estimate. A value of `0` disables the cap. In a multi-path `pack`, the cap applies
+to each path's content. Path headers, JSON metadata, and the final CLI newline
+are outside the cap. The same content limit applies to MCP's `maxTokens` option.
+When truncation is necessary, an ellipsis marks the omitted text and the result
+may be a preview of structured input.
+
 ### 2. Install Across AI Clients (Codex, Gemini CLI, Claude, Cursor)
 
 ```bash
