@@ -72,6 +72,20 @@ test('compressContent collapses repeated log lines and preserves errors + contex
   assert.ok(res.stats.savedPercent > 35);
 });
 
+test('maxTokens bounds the final payload and preserves Unicode at truncation boundaries', () => {
+  const input = 'START ' + '😀 !? é漢 '.repeat(200) + ' END';
+  for (const maxTokens of [1, 2, 5, 10, 30, 100]) {
+    const result = compressContent(input, { format: 'text', maxTokens });
+    assert.ok(result.content.length > 0);
+    assert.ok(estimateTokens(result.content) <= maxTokens, `Exceeded budget ${maxTokens}`);
+    assert.equal(result.content, Buffer.from(result.content, 'utf8').toString('utf8'));
+    assert.equal(result.stats.afterTokens, estimateTokens(result.content));
+  }
+  const result = compressContent(input, { format: 'text', maxTokens: 30 });
+  assert.match(result.content, /^START .*\n…\n.* END$/s);
+  assert.equal(compressContent('START', { format: 'text', maxTokens: 5 }).content, 'START');
+});
+
 test('compressPath and auditPath pack directories, ignore node_modules, and respect maxTokens', () => {
   const dir = makeTempDir();
   try {
@@ -87,7 +101,7 @@ test('compressPath and auditPath pack directories, ignore node_modules, and resp
     const packed = compressPath(dir, { level: 'balanced', mode: 'standalone', maxTokens: 90 });
     assert.equal(packed.fileCount, 2);
     assert.doesNotMatch(packed.content, /junk\.js/);
-    assert.ok(estimateTokens(packed.content) <= 130);
+    assert.ok(estimateTokens(packed.content) <= 90);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -108,6 +122,20 @@ test('CLI executes inspect and text compression cleanly', () => {
     const textParsed = JSON.parse(textOut);
     assert.equal(textParsed.format, 'json');
     assert.match(textParsed.content, /more items omitted/);
+
+    const input = 'alpha beta gamma '.repeat(100);
+    const budgeted = execFileSync(process.execPath, [cli, 'text', '--max-tokens', '1', '--json'], {
+      input, encoding: 'utf8'
+    });
+    assert.ok(JSON.parse(budgeted).stats.afterTokens <= 1);
+    for (const budget of [[], ['-1'], ['1.5'], ['Infinity'], ['invalid']]) {
+      assert.throws(
+        () => execFileSync(process.execPath, [cli, 'text', '--max-tokens', ...budget], {
+          input, stdio: ['pipe', 'pipe', 'pipe']
+        }),
+        /--max-tokens requires a non-negative integer/
+      );
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -117,7 +145,7 @@ test('ultra-lean stdio MCP server serves <= 3 tools with low schema overhead', a
   const dir = makeTempDir();
   try {
     const samplePath = path.join(dir, 'demo.js');
-    fs.writeFileSync(samplePath, '// comment\nfunction hello() { return "world"; }\n');
+    fs.writeFileSync(samplePath, '// comment\nfunction hello() { return "world"; }\n'.repeat(100));
 
     const child = spawn(process.execPath, [path.resolve(__dirname, '../bin/mcp-server.cjs')], {
       stdio: ['pipe', 'pipe', 'pipe']
@@ -153,7 +181,7 @@ test('ultra-lean stdio MCP server serves <= 3 tools with low schema overhead', a
         jsonrpc: '2.0',
         id: 4,
         method: 'tools/call',
-        params: { name: 'slim_file', arguments: { path: samplePath } }
+        params: { name: 'slim_file', arguments: { path: samplePath, maxTokens: 50 } }
       }) + '\n');
     });
 
@@ -165,6 +193,7 @@ test('ultra-lean stdio MCP server serves <= 3 tools with low schema overhead', a
     assert.equal(auditRes.format, 'code');
     const slimRes = JSON.parse(responses[3].result.content[0].text);
     assert.doesNotMatch(slimRes.content, /\/\/ comment/);
+    assert.ok(slimRes.stats.afterTokens <= 50);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
